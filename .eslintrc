@@ -1,0 +1,21 @@
+// {
+//   "extends": "airbnb-base",
+//   "rules": {
+//     "no-console": 0,
+//     "no-underscore-dangle": ["error", { "allow": ["_id"]}],
+//     "no-shadow": "off",
+//     "linebreak-style" : 0
+//   },
+//   "globals": {
+//     "_": false
+// }
+// }
+
+{
+  "extends": "airbnb-base",
+  "rules": {
+    "no-underscore-dangle": ["off", {"allow": ["_id"]}],
+    "no-console": "off",
+    "linebreak-style" : 0
+  }
+}
