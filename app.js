@@ -1,19 +1,22 @@
 require('dotenv').config();
 const express = require('express');
 
-const { PORT = 3000 } = process.env;
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
-const { celebrate, errors } = require('celebrate');
+const { errors } = require('celebrate');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('./middlewares/rateLimit');
 const routes = require('./routes');
-const usersRout = require('./routes/users');
-const movieRout = require('./routes/movies');
-const { createUser, login } = require('./controllers/users');
-const auth = require('./middlewares/auth');
 const centralError = require('./middlewares/centralError');
 const { requestLogger, errorLogger } = require('./middlewares/logger');
-const { userLoginValidation, userSignupValidation } = require('./middlewares/validation');
+
+const {
+  PORT = 3000,
+  NODE_ENV,
+  MONGO_URL,
+  DEFAULT_URL = 'mongodb://localhost:27017/moviesdb',
+} = process.env;
 
 const app = express();
 
@@ -35,23 +38,15 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json());
 app.use(requestLogger); // логи запросов
-
-app.post('/signin', celebrate(userLoginValidation), login);
-app.post('/signup', celebrate(userSignupValidation), createUser);
-
-app.use(auth);
-app.use('/users', usersRout);
-app.use('/movies', movieRout);
+app.use(rateLimit); // ограничение запросов с 1 ip
+app.use(helmet());
 app.use(routes);
 
-mongoose.connect('mongodb://localhost:27017/bitfilmsdb', {
+mongoose.connect(NODE_ENV === 'production' ? MONGO_URL : DEFAULT_URL, {
   useUnifiedTopology: true,
   useNewUrlParser: true,
 });
-
 app.use(errorLogger);
 app.use(errors());
 app.use(centralError);
-app.listen(PORT, () => {
-  console.log(`Актуальная ссылка на сервер: http://localhost:${PORT}`);
-});
+app.listen(PORT);

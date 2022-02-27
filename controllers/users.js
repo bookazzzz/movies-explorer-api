@@ -13,7 +13,7 @@ const { NODE_ENV, JWT_SECRET } = process.env;
 const createUser = (req, res, next) => {
   const {
     name,
-    email
+    email,
   } = req.body;
   bcrypt
     .hash(req.body.password, 10)
@@ -39,22 +39,25 @@ const createUser = (req, res, next) => {
 };
 
 // Обновление профия
-const updateUser = (req, res, next) => {
-  const { name, email } = req.body;
+const updateUser = async (req, res, next) => {
+  try {
+    const { name, email } = req.body;
 
-  User
-    .findByIdAndUpdate(req.user._id, { name, email }, { new: true, runValidators: true, })
-    .orFail(() => { throw new Error('NotFound'); })
-    .then((user) => res.send({ data: user }))
-    .catch((err) => {
-      if (err.name === 'ValidationError' || err.name === 'CastError') {
-        next(new BadRequest('Введены некорректные данные!'));
-      } else if (err.message === 'NotFound') {
-        next(new NotFoundError('Нет пользователя с таким _id'));
-      } else {
-        next(err);
-      }
-    });
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { name, email },
+      { new: true, runValidators: true },
+    );
+    res.status(200).send(user);
+  } catch (err) {
+    if (err.name === 'ValidationError' || err.name === 'CastError') {
+      next(new BadRequest('Переданы некорректные данные при обновлении профиля.'));
+    } else if (err.name === 'MongoServerError' && err.code === 11000) {
+      next(new ConflictError('Пользователь с данным email уже существует'));
+    } else {
+      next(err);
+    }
+  }
 };
 
 // контроллер логина
@@ -96,26 +99,25 @@ const getCurrentUser = (req, res, next) => User.findById(req.user._id)
   .then((user) => res.status(200).send({ user }))
   .catch((err) => {
     if (err.name === 'CastError') {
-      throw new BadRequest('Переданы некорректные данные');
+      next(new BadRequest('Переданы некорректные данные'));
     } else if (err.name === 'NotFoundError') {
-      throw new NotFoundError('Пользователь не найден');
+      next(new NotFoundError('Пользователь не найден'));
     } else {
       next(err);
     }
   });
 
-//Контроллер выхода
-  const logout = (req, res, next) => {
-    User.findOne({ _id: req.user._id })
-      .then(() => res.clearCookie('jwt').send({}))
-      .catch(next);
-  };
-
+// Контроллер выхода
+const logout = (req, res, next) => {
+  User.findOne({ _id: req.user._id })
+    .then(() => res.clearCookie('jwt').send({}))
+    .catch(next);
+};
 
 module.exports = {
   createUser,
   updateUser,
   login,
   getCurrentUser,
-  logout
+  logout,
 };
